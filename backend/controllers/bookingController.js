@@ -56,7 +56,10 @@ exports.createBooking = async (req, res) => {
                 conflictSeats: error.conflictSeats
             });
         }
-        res.status(500).json({ message: 'Lỗi xử lý đặt vé', error: error.message });
+        // Log full stack for debugging
+        console.error(error.stack || error);
+        // Return specific error message to client to aid troubleshooting in dev
+        res.status(500).json({ message: error.message || 'Lỗi xử lý đặt vé', error: error.message });
     }
 };
 
