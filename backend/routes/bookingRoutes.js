@@ -9,4 +9,11 @@ const bookingController = require('../controllers/bookingController');
 // GET /api/bookings       — Admin: Lấy toàn bộ danh sách đặt vé
 router.get('/', bookingController.getAllBookings);
 
+// PUT /api/bookings/:id   — Admin: Cập nhật đơn đặt vé
+router.put('/:id', bookingController.updateBooking);
+
+// DELETE /api/bookings/:id — Admin: Xóa đơn đặt vé
+router.delete('/:id', bookingController.deleteBooking);
+
 module.exports = router;
+
