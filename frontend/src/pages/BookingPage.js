@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Seat from '../components/Seat';
+import CustomSelect from '../components/CustomSelect';
 import { fetchMovieById, fetchShowtimesByMovie, fetchBookedSeats, createBooking } from '../services/api';
 
 const ALL_SEATS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
