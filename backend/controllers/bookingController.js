@@ -92,3 +92,48 @@ exports.getBookedSeats = async (req, res) => {
         res.status(500).json({ message: 'Lỗi lấy thông tin ghế', error: error.message });
     }
 };
+
+// 4. Cập nhật đơn đặt vé (Admin)
+exports.updateBooking = async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const { customerName, seats, showtime, movieId } = req.body;
+
+        const payload = {};
+        if (customerName !== undefined) payload.customerName = customerName.trim();
+        if (seats !== undefined) payload.seats = seats;
+        if (showtime !== undefined) payload.showtime = showtime;
+        if (movieId !== undefined) payload.movieId = parseInt(movieId);
+
+        await Ticket.update(id, payload);
+        res.status(200).json({ message: 'Cập nhật đơn đặt vé thành công!' });
+    } catch (error) {
+        console.error('Lỗi cập nhật booking:', error);
+        if (error.statusCode === 404) {
+            return res.status(404).json({ message: error.message });
+        }
+        if (error.statusCode === 409) {
+            return res.status(409).json({
+                message: `${error.message} Vui lòng chọn ghế khác.`,
+                conflictSeats: error.conflictSeats
+            });
+        }
+        res.status(500).json({ message: 'Lỗi cập nhật đơn đặt vé', error: error.message });
+    }
+};
+
+// 5. Xóa đơn đặt vé (Admin)
+exports.deleteBooking = async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const result = await Ticket.delete(id);
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Không tìm thấy đơn đặt vé để xóa!' });
+        }
+        res.status(200).json({ message: 'Xóa đơn đặt vé thành công!' });
+    } catch (error) {
+        console.error('Lỗi xóa booking:', error);
+        res.status(500).json({ message: 'Lỗi xóa đơn đặt vé', error: error.message });
+    }
+};
+
