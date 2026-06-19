@@ -93,3 +93,20 @@ export const fetchBookedSeats = async (movieId, showtime) => {
     const res = await fetch(`${BASE_URL}/movies/${movieId}/booked-seats?showtime=${encodeURIComponent(showtime)}`);
     return handleResponse(res, 'Lỗi tải thông tin ghế');
 };
+
+export const updateBooking = async (id, bookingData) => {
+    const res = await fetch(`${BASE_URL}/bookings/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookingData)
+    });
+    return handleResponse(res, 'Lỗi cập nhật đặt vé');
+};
+
+export const deleteBooking = async (id) => {
+    const res = await fetch(`${BASE_URL}/bookings/${id}`, {
+        method: 'DELETE'
+    });
+    return handleResponse(res, 'Lỗi xóa đặt vé');
+};
+
