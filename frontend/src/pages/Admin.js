@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
     fetchMovies, fetchAllBookings, addMovie, updateMovie, deleteMovie,
-    fetchAllShowtimes, addShowtime, deleteShowtime
+    fetchAllShowtimes, addShowtime, deleteShowtime, updateBooking, deleteBooking, fetchBookedSeats
 } from '../services/api';
+import CustomSelect from '../components/CustomSelect';
+
+const ALL_SEATS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
 
 const today = () => new Date().toISOString().split('T')[0];
 
@@ -25,6 +28,14 @@ function Admin() {
     const [stTime, setStTime] = useState('18:00');
     const [stHall, setStHall] = useState('Phòng 1');
     const [stSubmitting, setStSubmitting] = useState(false);
+
+    const [editingBooking, setEditingBooking] = useState(null);
+    const [ebCustomerName, setEbCustomerName] = useState('');
+    const [ebShowtime, setEbShowtime] = useState('');
+    const [ebSeats, setEbSeats] = useState([]);
+    const [ebBookedSeats, setEbBookedSeats] = useState([]);
+    const [ebSeatsLoading, setEbSeatsLoading] = useState(false);
+    const [ebSubmitting, setEbSubmitting] = useState(false);
 
     const syncData = async () => {
         try {
@@ -150,12 +161,195 @@ function Admin() {
         }
     };
 
+    const loadEbBookedSeats = async (movieId, showtimeKey, originalSeats = [], originalShowtime = '') => {
+        if (!showtimeKey) return;
+        try {
+            setEbSeatsLoading(true);
+            const data = await fetchBookedSeats(movieId, showtimeKey);
+            const isSameShowtime = (showtimeKey === originalShowtime);
+            const otherBooked = (data.bookedSeats || []).filter(s => isSameShowtime ? !originalSeats.includes(s) : true);
+            setEbBookedSeats(otherBooked);
+        } catch (err) {
+            console.warn('Không thể tải ghế đã đặt:', err);
+            setEbBookedSeats([]);
+        } finally {
+            setEbSeatsLoading(false);
+        }
+    };
+
+    const handleEditBooking = (booking) => {
+        setEditingBooking(booking);
+        setEbCustomerName(booking.customer_name);
+        setEbShowtime(booking.showtime);
+        setEbSeats(booking.seats || []);
+        loadEbBookedSeats(booking.movie_id, booking.showtime, booking.seats || [], booking.showtime);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const resetBookingForm = () => {
+        setEditingBooking(null);
+        setEbCustomerName('');
+        setEbShowtime('');
+        setEbSeats([]);
+        setEbBookedSeats([]);
+    };
+
+    const handleBookingSubmit = async (e) => {
+        e.preventDefault();
+        if (!ebCustomerName.trim()) {
+            alert('Vui lòng nhập họ tên khách hàng!');
+            return;
+        }
+        if (!ebShowtime) {
+            alert('Vui lòng chọn suất chiếu!');
+            return;
+        }
+        if (ebSeats.length === 0) {
+            alert('Vui lòng chọn ít nhất một ghế ngồi!');
+            return;
+        }
+
+        try {
+            setEbSubmitting(true);
+            const data = await updateBooking(editingBooking.id, {
+                customerName: ebCustomerName.trim(),
+                showtime: ebShowtime,
+                seats: ebSeats,
+                movieId: editingBooking.movie_id
+            });
+            alert(`✅ ${data.message}`);
+            resetBookingForm();
+            await syncData();
+        } catch (err) {
+            alert(`❌ ${err.message}`);
+        } finally {
+            setEbSubmitting(false);
+        }
+    };
+
+    const handleDeleteBooking = async (id) => {
+        if (!window.confirm('Xác nhận hủy/xóa đơn đặt vé này?')) {
+            return;
+        }
+        try {
+            const data = await deleteBooking(id);
+            alert(`✅ ${data.message}`);
+            if (editingBooking && editingBooking.id === id) {
+                resetBookingForm();
+            }
+            await syncData();
+        } catch (err) {
+            alert(`❌ ${err.message}`);
+        }
+    };
+
     return (
         <div className="admin-page">
             <h2>⚙️ HỆ THỐNG QUẢN TRỊ — ADMIN PANEL</h2>
             <p className="admin-subtitle">Quản lý phim, suất chiếu và theo dõi đơn đặt vé</p>
 
             <div className="admin-sections">
+                {/* Chỉnh sửa đơn đặt vé */}
+                {editingBooking && (
+                    <div className="admin-card admin-card-wide">
+                        <h3>✏️ Chỉnh Sửa Đơn Đặt Vé #{editingBooking.id}</h3>
+                        <form onSubmit={handleBookingSubmit} className="admin-form">
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' }}>
+                                <div className="form-group">
+                                    <label>👤 Họ và Tên khách hàng</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={ebCustomerName}
+                                        onChange={e => setEbCustomerName(e.target.value)}
+                                        placeholder="Nhập tên người nhận vé..."
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label>🕐 Suất chiếu</label>
+                                    <CustomSelect
+                                        value={ebShowtime}
+                                        onChange={(newShowtime) => {
+                                            setEbShowtime(newShowtime);
+                                            setEbSeats([]);
+                                            loadEbBookedSeats(editingBooking.movie_id, newShowtime, editingBooking.seats || [], editingBooking.showtime);
+                                        }}
+                                        options={[
+                                            ...(showtimes
+                                                .filter(st => st.movie_id === editingBooking.movie_id)
+                                                .map(st => ({ value: st.key, label: st.label }))),
+                                            ...(showtimes.filter(st => st.movie_id === editingBooking.movie_id).length === 0
+                                                ? [{ value: editingBooking.showtime, label: editingBooking.showtime }]
+                                                : [])
+                                        ]}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="form-group" style={{ marginTop: '10px' }}>
+                                <label>🪑 Chọn Ghế Ngồi (Ghế trống / Ghế đang chọn)</label>
+                                {ebSeatsLoading ? (
+                                    <div style={{ color: 'var(--text-secondary)' }}>Đang tải ghế...</div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                        <div className="seat-legend" style={{ marginBottom: '5px' }}>
+                                            <div className="legend-item">
+                                                <div className="legend-dot available" />
+                                                <span>Ghế trống</span>
+                                            </div>
+                                            <div className="legend-item">
+                                                <div className="legend-dot selected" />
+                                                <span>Đang chọn</span>
+                                            </div>
+                                            <div className="legend-item">
+                                                <div className="legend-dot booked" />
+                                                <span>Đã đặt</span>
+                                            </div>
+                                        </div>
+                                        <div className="seat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', maxWidth: '300px' }}>
+                                            {ALL_SEATS.map(seat => {
+                                                const isBooked = ebBookedSeats.includes(seat);
+                                                const isSelected = ebSeats.includes(seat);
+                                                let status = 'available';
+                                                if (isBooked) status = 'booked';
+                                                else if (isSelected) status = 'selected';
+
+                                                return (
+                                                    <button
+                                                        key={seat}
+                                                        type="button"
+                                                        className={`seat-btn ${status}`}
+                                                        disabled={isBooked}
+                                                        onClick={() => {
+                                                            setEbSeats(prev =>
+                                                                prev.includes(seat)
+                                                                    ? prev.filter(s => s !== seat)
+                                                                    : [...prev, seat]
+                                                            );
+                                                        }}
+                                                    >
+                                                        {seat}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="admin-form-actions" style={{ marginTop: '15px' }}>
+                                <button type="button" className="cancel-btn" onClick={resetBookingForm}>
+                                    Hủy
+                                </button>
+                                <button type="submit" disabled={ebSubmitting}>
+                                    {ebSubmitting ? '⏳ Đang lưu...' : '💾 Lưu Thay Đổi'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
                 {/* Thêm / Sửa phim */}
                 <div className="admin-card">
                     <h3>{editingId ? '✏️ Chỉnh Sửa Phim' : '🎬 Đăng Tải Phim Mới'}</h3>
@@ -241,23 +435,35 @@ function Admin() {
                 <div className="admin-card">
                     <h3>🕐 Thêm Suất Chiếu</h3>
                     <form onSubmit={handleShowtimeSubmit} className="admin-form">
-                        <select value={stMovieId} onChange={e => setStMovieId(e.target.value)} required>
-                            <option value="">-- Chọn phim --</option>
-                            {movies.map(m => (
-                                <option key={m.id} value={m.id}>{m.title}</option>
-                            ))}
-                        </select>
+                        <CustomSelect
+                            value={stMovieId}
+                            onChange={setStMovieId}
+                            placeholder="-- Chọn phim --"
+                            options={[
+                                ...movies.map(m => ({ value: String(m.id), label: m.title }))
+                            ]}
+                            required
+                            disabled={movies.length === 0}
+                        />
                         <input type="date" value={stDate} onChange={e => setStDate(e.target.value)} required />
-                        <select value={stTime} onChange={e => setStTime(e.target.value)}>
-                            <option value="15:00">15:00 - Chiều</option>
-                            <option value="18:00">18:00 - Tối</option>
-                            <option value="21:00">21:00 - Đêm</option>
-                        </select>
-                        <select value={stHall} onChange={e => setStHall(e.target.value)}>
-                            <option value="Phòng 1">Phòng 1</option>
-                            <option value="Phòng 2">Phòng 2</option>
-                            <option value="Phòng 3">Phòng 3</option>
-                        </select>
+                        <CustomSelect
+                            value={stTime}
+                            onChange={setStTime}
+                            options={[
+                                { value: '15:00', label: '15:00 - Chiều' },
+                                { value: '18:00', label: '18:00 - Tối' },
+                                { value: '21:00', label: '21:00 - Đêm' },
+                            ]}
+                        />
+                        <CustomSelect
+                            value={stHall}
+                            onChange={setStHall}
+                            options={[
+                                { value: 'Phòng 1', label: 'Phòng 1' },
+                                { value: 'Phòng 2', label: 'Phòng 2' },
+                                { value: 'Phòng 3', label: 'Phòng 3' },
+                            ]}
+                        />
                         <button type="submit" disabled={stSubmitting || movies.length === 0}>
                             {stSubmitting ? '⏳ Đang thêm...' : '➕ Thêm Suất Chiếu'}
                         </button>
@@ -300,12 +506,13 @@ function Admin() {
                                         <th>Suất Chiếu</th>
                                         <th>Ghế</th>
                                         <th>Ngày Đặt</th>
+                                        <th>Thao Tác</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {bookings.length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" className="admin-empty-cell">
+                                            <td colSpan="7" className="admin-empty-cell">
                                                 🎭 Chưa có đơn đặt vé nào trên hệ thống
                                             </td>
                                         </tr>
@@ -325,6 +532,12 @@ function Admin() {
                                                     {b.booking_date
                                                         ? new Date(b.booking_date).toLocaleString('vi-VN')
                                                         : '—'}
+                                                </td>
+                                                <td>
+                                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                                        <button className="edit-btn" onClick={() => handleEditBooking(b)}>Sửa</button>
+                                                        <button className="delete-btn" onClick={() => handleDeleteBooking(b.id)}>Xóa</button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
