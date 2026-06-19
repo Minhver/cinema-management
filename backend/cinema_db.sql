@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS showtimes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     movie_id INT NOT NULL,
     show_date DATE NOT NULL,
-    show_time VARCHAR(10) NOT NULL COMMENT 'VD: 15:00, 18:00, 21:00',
+    show_time VARCHAR(100) NOT NULL COMMENT 'VD: 15:00, 18:00, 21:00',
     hall VARCHAR(50) DEFAULT 'Phòng 1',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (movie_id) REFERENCES movies(id) ON DELETE CASCADE
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     movie_id INT NOT NULL,
     customer_name VARCHAR(255) NOT NULL,
-    showtime VARCHAR(20) NOT NULL COMMENT 'Suất chiếu: 15:00/18:00/21:00',
+    showtime VARCHAR(100) NOT NULL COMMENT 'Suất chiếu: 15:00/18:00/21:00',
     seats TEXT NOT NULL COMMENT 'Danh sách ghế dạng JSON: ["A1","A2"]',
     total_tickets INT NOT NULL DEFAULT 1,
     booking_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
