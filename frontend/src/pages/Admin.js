@@ -10,6 +10,10 @@ const ALL_SEATS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
 const today = () => new Date().toISOString().split('T')[0];
 
 function Admin() {
+    
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [passcode, setPasscode] = useState('');
+
     const [movies, setMovies] = useState([]);
     const [showtimes, setShowtimes] = useState([]);
     const [bookings, setBookings] = useState([]);
@@ -242,6 +246,35 @@ function Admin() {
             alert(`❌ ${err.message}`);
         }
     };
+
+    if (!isAuthenticated) {
+        return (
+            <div className="admin-page" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+                <div className="admin-card" style={{ maxWidth: '400px', width: '100%', textAlign: 'center' }}>
+                    <h2>🔒 Khu Vực Quản Trị</h2>
+                    <p style={{ marginBottom: '20px', color: 'var(--text-secondary)' }}>Vui lòng nhập mật mã để truy cập</p>
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        if (passcode === '12345689') {
+                            setIsAuthenticated(true);
+                        } else {
+                            alert('❌ Mật mã không chính xác!');
+                        }
+                    }} className="admin-form">
+                        <input 
+                            type="password" 
+                            placeholder="Nhập mật mã..." 
+                            value={passcode}
+                            onChange={e => setPasscode(e.target.value)}
+                            required
+                            style={{ textAlign: 'center', letterSpacing: '2px' }}
+                        />
+                        <button type="submit" style={{ marginTop: '10px' }}>Đăng nhập</button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="admin-page">
@@ -553,3 +586,4 @@ function Admin() {
 }
 
 export default Admin;
+
