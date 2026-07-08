@@ -84,10 +84,9 @@ const Ticket = {
             ...row,
             seats: parseSeats(row.seats)
         }));
-    }
-};
+    },
 
-// Cập nhật đơn đặt vé (Admin)
+    // Cập nhật đơn đặt vé (Admin)
     update: async (id, data) => {
         const connection = await db.getConnection();
         try {
